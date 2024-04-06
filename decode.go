@@ -3,8 +3,6 @@ package ethrlp
 import (
 	"errors"
 	"fmt"
-
-	iq "github.com/madz-lab/insertion-queue"
 )
 
 var ErrInvalidLength = errors.New("invalid data length")
@@ -33,50 +31,30 @@ func DecodeBytes(input []byte) (Value, error) {
 		}, nil
 	}
 
-	// Spin up the decoder worker pool
-	decodePool := newDecodeWorkerPool()
-	defer decodePool.close()
+	var (
+		arrayLength     = metadata.dataLength - metadata.dataOffset
+		decodedElements = make([]Value, 0)
+	)
 
-	decodedElements := iq.NewQueue()
-	jobIndex := 0
-	parseIndex := 0
-	numElems := 0
-	arrayLength := metadata.dataLength - metadata.dataOffset
-
-	// Spawn a worker for each element of the array
-	for parseIndex < arrayLength {
+	// Parse each element of the list
+	for parseIndex := 0; parseIndex < arrayLength; parseIndex += metadata.dataLength + 1 {
+		// Get metadata on the element
 		metadata, err = getMetadata(data[parseIndex:])
 		if err != nil {
 			return nil, err
 		}
 
-		decodePool.addJob(&workerJob{
-			storeIndex: jobIndex,
-			sourceData: data[parseIndex:min(parseIndex+metadata.dataLength+1, len(data))],
-		})
-
-		parseIndex += metadata.dataLength + 1
-		jobIndex++
-		numElems++
-	}
-
-	for i := 0; i < numElems; i++ {
-		decodedElements.Push(decodePool.getResult())
-	}
-
-	decodedElementsLocal := make([]Value, 0, decodedElements.Len())
-
-	for decodedElements.Len() > 0 {
-		result, _ := decodedElements.PopFront().(*workerDecodeResult)
-		if result.error != nil {
-			return nil, fmt.Errorf("unable to decode element, %w", result.error)
+		// Decode the RLP encoding
+		decoded, err := DecodeBytes(data[parseIndex:min(parseIndex+metadata.dataLength+1, len(data))])
+		if err != nil {
+			return nil, fmt.Errorf("unable to decode element, %w", err)
 		}
 
-		decodedElementsLocal = append(decodedElementsLocal, result.decodedValue)
+		decodedElements = append(decodedElements, decoded)
 	}
 
 	return &ListValue{
-		values: decodedElementsLocal,
+		values: decodedElements,
 	}, nil
 }
 
