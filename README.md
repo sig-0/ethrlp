@@ -1,7 +1,8 @@
 ## Overview
 
-`ethrlp` is a Go library that implements encoding and decoding logic for Ethereum's Recursive Length Prefix (RLP)
-standard. RLP is a serialization method used in Ethereum to encode arbitrarily nested arrays of binary data. This
+`ethrlp` is a Go library that implements encoding and decoding logic for Ethereum's [Recursive Length Prefix (RLP)
+standard](https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/). RLP is a serialization method used
+in Ethereum to encode arbitrarily nested arrays of binary data. This
 library allows developers to encode various data types to RLP format and decode RLP-encoded data back into its original
 form.
 
