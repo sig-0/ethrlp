@@ -1,5 +1,41 @@
 package ethrlp
 
+import "math/big"
+
+var (
+	EmptyBytes = []byte{0x80}
+	EmptyArray = []byte{0xC0}
+)
+
+// EncodeBool encodes a single bool to RLP
+func EncodeBool(input bool) []byte {
+	if input {
+		return []byte{0x01}
+	}
+
+	return EmptyBytes
+}
+
+// EncodeInt encodes an int64 to RLP
+func EncodeInt(input int64) []byte {
+	return EncodeBigInt(big.NewInt(input))
+}
+
+// EncodeUint encodes a uint64 to RLP
+func EncodeUint(input uint64) []byte {
+	return EncodeBigInt(big.NewInt(0).SetUint64(input))
+}
+
+// EncodeBigInt encodes a big.Int to RLP
+func EncodeBigInt(input *big.Int) []byte {
+	return EncodeBytes(input.Bytes())
+}
+
+// EncodeString encodes a string to RLP
+func EncodeString(input string) []byte {
+	return EncodeBytes([]byte(input))
+}
+
 // EncodeByte encodes a single byte to RLP
 func EncodeByte(input byte) []byte {
 	// If input is a single byte in the [0x00, 0x7f] range,
@@ -22,7 +58,13 @@ func EncodeBytes(input []byte) []byte {
 	// (uint(0), []byte{}, string(""), empty pointer...),
 	// RLP encoding is 0x80
 	if len(input) == 0 {
-		return []byte{0x80}
+		return EmptyBytes
+	}
+
+	// If the input is a single value,
+	// encode it according to single byte rules
+	if len(input) == 1 {
+		return EncodeByte(input[0])
 	}
 
 	// If input is more than 55 bytes long,
@@ -44,17 +86,12 @@ func EncodeBytes(input []byte) []byte {
 
 // encodeShortBytes encodes an input byte array that is <=55B long
 func encodeShortBytes(input []byte) []byte {
-	// The resulting RLP encoding is the entire input bytes array
-	// along with the single byte denoting the length
-	result := make([]byte, 0, 1+len(input))
+	result := make([]byte, 1+len(input))
 
-	// The first byte is the sum of 0x80,
-	// and the length of the input bytes
-	result = append(result, 0x80+byte(len(input))) // length is <= 0xff
+	result[0] = 0x80 + byte(len(input))
+	copy(result[1:], input)
 
-	// The rest of the RLP encoding
-	// are the actual concatenated bytes
-	return append(result, input...)
+	return result
 }
 
 // encodeLongBytes encodes an input byte array that is >55B long
@@ -63,19 +100,19 @@ func encodeLongBytes(input []byte) []byte {
 	// along with the single byte denoting the length,
 	// and the actual length bytes
 	lengthBytes := convertIntToHexArray(len(input))
-	result := make([]byte, 0, 1+len(lengthBytes)+len(input))
+	result := make([]byte, 1+len(lengthBytes)+len(input))
 
 	// The first byte is the sum of 0xb7
 	// and the length of the incoming next bytes
-	result = append(result, 0xb7+byte(len(lengthBytes)))
+	result[0] = 0xb7 + byte(len(lengthBytes))
 
-	// The second part of the RLP encoding are the length bytes
-	// of the input value
-	result = append(result, lengthBytes...)
+	ln := len(lengthBytes)
+	copy(result[1:ln+1], lengthBytes)
+	copy(result[ln+1:], input)
 
 	// The rest of the RLP encoding
 	// are the actual concatenated bytes
-	return append(result, input...)
+	return result
 }
 
 // convertIntToHexArray converts the integer value
@@ -100,25 +137,15 @@ func convertIntToHexArray(length int) []byte {
 	return lengthHex
 }
 
-// EncodeBool encodes a boolean value to RLP
-func EncodeBool(input bool) []byte {
-	if input {
-		// "true" values are encoded as 0x01
-		return []byte{0x01}
-	}
-
-	// "false" values are encoded as 0x80
-	return []byte{0x80}
-}
-
 // EncodeArray encodes an entire input array to RLP.
-// This method concurrently generates RLP encodings for
-// each input element, and constructs an RLP encoding from the results
+//
+// NOTE: Assumes that the input array elements are RLP-encodings
+// (the elements of the array are RLP-encoded prior to this call)
 func EncodeArray(input [][]byte) []byte {
 	// If the input is an empty array,
 	// the RLP encoding is a single byte 0xc0
 	if len(input) == 0 {
-		return []byte{0xc0}
+		return EmptyArray
 	}
 
 	// Encoded parts of the input array
@@ -127,25 +154,10 @@ func EncodeArray(input [][]byte) []byte {
 	// Keep track of the combined length (in bytes)
 	combinedLength := 0
 
-	// Create the worker pool for RLP encoding
-	workerPool := newWorkerPool(len(input) + 1)
-
-	defer workerPool.close()
-
-	// For each data point, spawn a worker to handle it
+	// For each data point, encode it to RLP
 	for index, data := range input {
-		workerPool.addJob(&workerJob{
-			storeIndex: index,
-			sourceData: data,
-		})
-	}
-
-	// Get the results from the worker pool
-	for i := 0; i < len(input); i++ {
-		result := workerPool.getResult()
-		encodingResults[result.storeIndex] = result.encodedData
-
-		combinedLength += len(result.encodedData)
+		encodingResults[index] = data
+		combinedLength += len(encodingResults[index])
 	}
 
 	if combinedLength > 55 {

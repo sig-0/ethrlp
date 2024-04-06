@@ -1,57 +1,62 @@
 package ethrlp
 
-// workerPool is the pool of worker threads
-// that parse hashing jobs
-type workerPool struct {
-	resultsCh chan *workerResult // The channel to relay results to
-}
+import (
+	iq "github.com/madz-lab/insertion-queue"
+)
 
-// workerJob is a single encoding job performed
+// workerJob is a single routine job performed
 // by the worker thread
 type workerJob struct {
-	storeIndex int    // the final store index after encoding
-	sourceData []byte // the reference to the item that need to be encoded
+	sourceData []byte // the reference to the item that need to be parsed
+	storeIndex int    // the final store index after finalization
 }
 
-// workerResult is the result of the worker thread's encoding job
-type workerResult struct {
-	storeIndex  int    // the final store index after encoding
-	encodedData []byte // the actual RLP encoded result data
+type decodeWorkerPool struct {
+	resultsCh chan *workerDecodeResult // The channel to relay results to
+}
+
+// workerDecodeResult is the result of the worker thread's decoding job
+type workerDecodeResult struct {
+	error        error
+	decodedValue Value
+	storeIndex   int // the final store index after decoding
+}
+
+func (wr *workerDecodeResult) Less(other iq.Item) bool {
+	return wr.storeIndex < other.(*workerDecodeResult).storeIndex
 }
 
 // newWorkerPool spawns a new worker pool
-func newWorkerPool(expectedNumResults int) *workerPool {
-	return &workerPool{
-		resultsCh: make(chan *workerResult, expectedNumResults),
+func newDecodeWorkerPool() *decodeWorkerPool {
+	return &decodeWorkerPool{
+		resultsCh: make(chan *workerDecodeResult),
 	}
 }
 
 // addJob adds a new job asynchronously to be processed by the worker pool
-func (wp *workerPool) addJob(job *workerJob) {
+func (wp *decodeWorkerPool) addJob(job *workerJob) {
 	go wp.runJob(job)
 }
 
-// getResult takes out a result from the worker pool [Blocking]
-func (wp *workerPool) getResult() *workerResult {
+// getResult takes out a result from the worker pool [BLOCKING]
+func (wp *decodeWorkerPool) getResult() *workerDecodeResult {
 	return <-wp.resultsCh
 }
 
-// close closes the worker pool and their corresponding
-// channels
-func (wp *workerPool) close() {
+// close closes the worker pool and their corresponding channels
+func (wp *decodeWorkerPool) close() {
 	close(wp.resultsCh)
 }
 
 // runJob is the main activity method for the
 // worker threads where new jobs are parsed and results sent out
-func (wp *workerPool) runJob(job *workerJob) {
-	// Encode the data to RLP
-	encodedBytes := EncodeBytes(job.sourceData)
+func (wp *decodeWorkerPool) runJob(job *workerJob) {
+	decodedValue, decodeErr := DecodeBytes(job.sourceData)
 
-	// Construct a hash result from the fast hasher
-	result := &workerResult{
-		storeIndex:  job.storeIndex,
-		encodedData: encodedBytes,
+	result := &workerDecodeResult{
+		storeIndex:   job.storeIndex,
+		decodedValue: decodedValue,
+		error:        decodeErr,
 	}
 
 	// Report the result back
