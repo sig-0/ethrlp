@@ -7,6 +7,7 @@ var (
 	List  Type = 0x2
 )
 
+// Value is a decoded data value
 type Value interface {
 	// GetType returns the type information of the value
 	GetType() Type

@@ -11,9 +11,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// testingT is a sugar interface for sharing
+// helpers between *testing.T and *testing.B
+type testingT interface {
+	Helper()
+
+	require.TestingT
+	assert.TestingT
+}
+
 // hexToBytes converts a string hex representation to a bytes array
 // (without the leading 0x)
-func hexToBytes(t *testing.T, input string) []byte {
+func hexToBytes(t testingT, input string) []byte {
 	t.Helper()
 
 	r := strings.NewReplacer("\t", "", " ", "", "\n", "")

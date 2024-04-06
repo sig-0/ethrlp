@@ -195,74 +195,58 @@ func TestEncodeDecode_Array_Bytes(t *testing.T) {
 func TestEncodeDecode_Array_Nested(t *testing.T) {
 	t.Parallel()
 
-	testTable := []struct {
-		name  string
-		input [][]byte
-	}{
-		{
-			"dictionary values",
-			[][]byte{
-				EncodeArray([][]byte{
-					EncodeString("key1"),
-					EncodeString("val1"),
-				}),
-				EncodeArray([][]byte{
-					EncodeString("key2"),
-					EncodeString("val2"),
-				}),
-				EncodeArray([][]byte{
-					EncodeString("key3"),
-					EncodeString("val3"),
-				}),
-				EncodeArray([][]byte{
-					EncodeString("key4"),
-					EncodeString("val4"),
-				}),
-			},
-		},
+	input := [][]byte{
+		EncodeArray([][]byte{
+			EncodeString("key1"),
+			EncodeString("val1"),
+		}),
+		EncodeArray([][]byte{
+			EncodeString("key2"),
+			EncodeString("val2"),
+		}),
+		EncodeArray([][]byte{
+			EncodeString("key3"),
+			EncodeString("val3"),
+		}),
+		EncodeArray([][]byte{
+			EncodeString("key4"),
+			EncodeString("val4"),
+		}),
 	}
 
-	for _, testCase := range testTable {
-		testCase := testCase
+	// Encode and decode the value
+	decoded, err := DecodeBytes(EncodeArray(input))
 
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
+	require.NoError(t, err)
+	require.NotNil(t, decoded)
 
-			// Encode and decode the value
-			decoded, err := DecodeBytes(EncodeArray(testCase.input))
+	// Make sure the type is valid
+	assert.Equal(t, List, decoded.GetType())
 
-			require.NoError(t, err)
-			require.NotNil(t, decoded)
+	// Make sure the underlying Go type
+	// is valid
+	castValue, ok := decoded.GetValue().([]Value)
+	assert.True(t, ok)
 
-			// Make sure the type is valid
-			assert.Equal(t, List, decoded.GetType())
+	// Make sure the decoded value
+	// matches the raw value
+	require.Len(t, castValue, len(input))
 
-			// Make sure the underlying Go type
-			// is valid
-			castValue, ok := decoded.GetValue().([]Value)
-			assert.True(t, ok)
+	for index := range input {
+		rawValue := castValue[index]
 
-			// Make sure the decoded value
-			// matches the raw value
-			require.Len(t, castValue, len(testCase.input))
+		// Make sure the type is valid
+		assert.Equal(t, List, rawValue.GetType())
 
-			for index := range testCase.input {
-				rawValue := castValue[index]
+		// Make sure the underlying Go type is valid
+		nestedValues, ok := rawValue.GetValue().([]Value)
+		require.True(t, ok)
 
-				// Make sure the type is valid
-				assert.Equal(t, List, rawValue.GetType())
+		for _, nestedValue := range nestedValues {
+			arrayValue, ok := nestedValue.GetValue().([]byte)
+			require.True(t, ok)
 
-				// Make sure the underlying Go type is valid
-				nestedValues, ok := rawValue.GetValue().([]Value)
-				require.True(t, ok)
-
-				for _, nestedValue := range nestedValues {
-					arrayValue, ok := nestedValue.GetValue().([]byte)
-					require.True(t, ok)
-
-					assert.NotNil(t, arrayValue)
-				}
-			}
-		})
+			assert.NotNil(t, arrayValue)
+		}
 	}
 }

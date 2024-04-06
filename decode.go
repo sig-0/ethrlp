@@ -52,7 +52,7 @@ func DecodeBytes(input []byte) (Value, error) {
 
 		decodePool.addJob(&workerJob{
 			storeIndex: jobIndex,
-			sourceData: data[parseIndex : parseIndex+metadata.dataLength+1],
+			sourceData: data[parseIndex:min(parseIndex+metadata.dataLength+1, len(data))],
 		})
 
 		parseIndex += metadata.dataLength + 1
