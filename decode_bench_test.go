@@ -5,7 +5,10 @@ import (
 )
 
 func benchmarkDecodeCommon(b *testing.B, input []byte) {
+	b.Helper()
+
 	for i := 0; i < b.N; i++ {
+		//nolint:errcheck // No need to check for errors
 		_, _ = DecodeBytes(input)
 	}
 }

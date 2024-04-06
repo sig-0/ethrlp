@@ -3,6 +3,8 @@ package ethrlp
 import "testing"
 
 func benchmarkStringCommon(b *testing.B, value string) {
+	b.Helper()
+
 	for i := 0; i < b.N; i++ {
 		_ = EncodeString(value)
 	}
