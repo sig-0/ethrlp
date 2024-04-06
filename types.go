@@ -2,6 +2,15 @@ package ethrlp
 
 type Type byte
 
+func (t Type) String() string {
+	switch t {
+	case Bytes:
+		return "Bytes"
+	default:
+		return "List"
+	}
+}
+
 var (
 	Bytes Type = 0x1
 	List  Type = 0x2
