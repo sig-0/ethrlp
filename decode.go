@@ -26,14 +26,14 @@ func DecodeBytes(input []byte) (Value, error) {
 	}
 
 	if !isListType {
-		return &BytesValue{
+		return BytesValue{
 			value: data,
 		}, nil
 	}
 
 	var (
 		arrayLength     = metadata.dataLength - metadata.dataOffset
-		decodedElements = make([]Value, 0)
+		decodedElements = make([]Value, 0, 4)
 	)
 
 	// Parse each element of the list
@@ -53,7 +53,7 @@ func DecodeBytes(input []byte) (Value, error) {
 		decodedElements = append(decodedElements, decoded)
 	}
 
-	return &ListValue{
+	return ListValue{
 		values: decodedElements,
 	}, nil
 }
@@ -74,9 +74,9 @@ type metadata struct {
 }
 
 // getMetadata returns the metadata about the top-level RLP type
-func getMetadata(data []byte) (*metadata, error) {
+func getMetadata(data []byte) (metadata, error) {
 	if len(data) == 0 {
-		return &metadata{
+		return metadata{
 			dataType: emptyType,
 		}, nil
 	}
@@ -86,7 +86,7 @@ func getMetadata(data []byte) (*metadata, error) {
 	switch {
 	case firstByte <= 0x7f:
 		// Single byte value
-		return &metadata{
+		return metadata{
 			dataType:   byteType,
 			dataOffset: 0,
 			dataLength: 1,
@@ -96,10 +96,10 @@ func getMetadata(data []byte) (*metadata, error) {
 		length := int(firstByte - 0x80)
 
 		if length > len(data)-1 {
-			return nil, constructLengthError(length, len(data)-1)
+			return metadata{}, constructLengthError(length, len(data)-1)
 		}
 
-		return &metadata{
+		return metadata{
 			dataType:   shortBytesType,
 			dataOffset: 0,
 			dataLength: length,
@@ -108,16 +108,16 @@ func getMetadata(data []byte) (*metadata, error) {
 		// Long bytes
 		lengthBytes := int(firstByte - 0xb7)
 		if lengthBytes > len(data)-1 {
-			return nil, constructLengthError(lengthBytes, len(data)-1)
+			return metadata{}, constructLengthError(lengthBytes, len(data)-1)
 		}
 
 		length := convertHexArrayToInt(data[1 : lengthBytes+1])
 
 		if length > len(data)-1-lengthBytes {
-			return nil, constructLengthError(length, len(data)-1-lengthBytes)
+			return metadata{}, constructLengthError(length, len(data)-1-lengthBytes)
 		}
 
-		return &metadata{
+		return metadata{
 			dataType:   longBytesType,
 			dataOffset: lengthBytes,
 			dataLength: lengthBytes + length,
@@ -126,10 +126,10 @@ func getMetadata(data []byte) (*metadata, error) {
 		// Short array
 		length := int(firstByte - 0xc0)
 		if length > len(data)-1 {
-			return nil, constructLengthError(length, len(data)-1)
+			return metadata{}, constructLengthError(length, len(data)-1)
 		}
 
-		return &metadata{
+		return metadata{
 			dataType:   shortArrayType,
 			dataOffset: 0,
 			dataLength: length,
@@ -138,16 +138,16 @@ func getMetadata(data []byte) (*metadata, error) {
 		// Long array
 		lengthBytes := int(firstByte - 0xf7)
 		if lengthBytes > len(data)-1 {
-			return nil, constructLengthError(lengthBytes, len(data)-1)
+			return metadata{}, constructLengthError(lengthBytes, len(data)-1)
 		}
 
 		length := convertHexArrayToInt(data[1 : lengthBytes+1])
 
 		if length > len(data)-1-lengthBytes {
-			return nil, constructLengthError(length, len(data)-1-lengthBytes)
+			return metadata{}, constructLengthError(length, len(data)-1-lengthBytes)
 		}
 
-		return &metadata{
+		return metadata{
 			dataType:   longArrayType,
 			dataOffset: lengthBytes,
 			dataLength: lengthBytes + length,

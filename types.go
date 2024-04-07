@@ -29,11 +29,11 @@ type BytesValue struct {
 	value []byte
 }
 
-func (b *BytesValue) GetType() Type {
+func (b BytesValue) GetType() Type {
 	return Bytes
 }
 
-func (b *BytesValue) GetValue() any {
+func (b BytesValue) GetValue() any {
 	return b.value
 }
 
@@ -41,10 +41,10 @@ type ListValue struct {
 	values []Value
 }
 
-func (a *ListValue) GetType() Type {
+func (a ListValue) GetType() Type {
 	return List
 }
 
-func (a *ListValue) GetValue() any {
+func (a ListValue) GetValue() any {
 	return a.values
 }
