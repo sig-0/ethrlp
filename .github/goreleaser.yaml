@@ -7,14 +7,8 @@ before:
 builds:
   - skip: true
 
-gomod:
-  proxy: true
-
 changelog:
   sort: asc
-
-source:
-  enabled: true
 
 release:
   draft: true
