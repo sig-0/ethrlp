@@ -1,0 +1,22 @@
+project_name: ethrlp
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - skip: true
+
+gomod:
+  proxy: true
+
+changelog:
+  sort: asc
+
+source:
+  enabled: true
+
+release:
+  draft: true
+  replace_existing_draft: true
+  prerelease: true
