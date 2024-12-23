@@ -15,20 +15,20 @@ using the provided encode methods.
 You can install `ethrlp` using `go get`:
 
 ```shell
-go get -u github.com/madz-lab/ethrlp
+go get -u github.com/sig-0/ethrlp
 ```
 
 ## Usage
 
 For documentation on how to use the library, please reference the
-adequate [Go Doc](https://pkg.go.dev/github.com/madz-lab/ethrlp) page.
+adequate [Go Doc](https://pkg.go.dev/github.com/sig-0/ethrlp) page.
 
 ## Benchmarks
 
 ```shell
 goos: darwin
 goarch: arm64
-pkg: github.com/madz-lab/ethrlp
+pkg: github.com/sig-0/ethrlp
 BenchmarkDecode_String_Short-14                 55288180                18.69 ns/op           24 B/op          1 allocs/op
 BenchmarkDecode_String_Medium-14                62132836                19.18 ns/op           24 B/op          1 allocs/op
 BenchmarkDecode_String_Long-14                  61043461                19.45 ns/op           24 B/op          1 allocs/op
@@ -46,5 +46,5 @@ BenchmarkEncode_Array_Large-14                   1774267               670.8 ns/
 BenchmarkEncode_Array_Nested_Short-14            9627250               125.0 ns/op           144 B/op          9 allocs/op
 BenchmarkEncode_Array_Nested_Long-14             3124429               380.8 ns/op           720 B/op         25 allocs/op
 PASS
-ok      github.com/madz-lab/ethrlp      22.270s
+ok      github.com/sig-0/ethrlp      22.270s
 ```
