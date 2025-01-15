@@ -742,3 +742,123 @@ func TestDecode_EthereumTests(t *testing.T) {
 		assert.Equal(t, expectedNumber.Bytes(), big.NewInt(0).SetBytes(rawValue).Bytes())
 	})
 }
+
+func TestDecode_EIP155(t *testing.T) {
+	t.Parallel()
+
+	// [nonce, gasPrice, gas, to, value, data, v, r, s] (9 elements)
+	//
+	// Nonce:    9
+	// GasPrice: 20000000000
+	// GasLimit: 21000
+	// To:       0x3535353535353535353535353535353535353535
+	// Value:    1000000000000000000
+	// Data:     0x
+	// V:        37
+	// R:        0x28ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276
+	// S:        0x67cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83
+	list, err := DecodeBytes(hexToBytes(t, "f86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83"))
+	require.NoError(t, err)
+
+	require.Equal(t, List, list.GetType())
+
+	listValues, _ := list.GetValue().([]Value)
+	require.Len(t, listValues, 9)
+
+	// Decode the nonce
+	require.Equal(t, Bytes, listValues[0].GetType())
+
+	nonceRaw, ok := listValues[0].GetValue().([]byte)
+	require.True(t, ok)
+	require.NotNil(t, nonceRaw)
+
+	assert.Equal(t, uint64(9), big.NewInt(0).SetBytes(nonceRaw).Uint64())
+
+	// Decode the gas price
+	require.Equal(t, Bytes, listValues[1].GetType())
+
+	gasPriceRaw, ok := listValues[1].GetValue().([]byte)
+	require.True(t, ok)
+	require.NotNil(t, gasPriceRaw)
+
+	gasPrice := big.NewInt(0).SetBytes(gasPriceRaw)
+	expectedGasPrice := big.NewInt(0).SetUint64(20000000000)
+
+	assert.Zero(t, expectedGasPrice.Cmp(gasPrice))
+
+	// Decode the gas limit
+	require.Equal(t, Bytes, listValues[2].GetType())
+
+	gasLimitRaw, ok := listValues[2].GetValue().([]byte)
+	require.True(t, ok)
+	require.NotNil(t, gasLimitRaw)
+
+	gasLimit := big.NewInt(0).SetBytes(gasLimitRaw).Uint64()
+	assert.Equal(t, uint64(21000), gasLimit)
+
+	// Decode the recipient address
+	require.Equal(t, Bytes, listValues[3].GetType())
+
+	toRaw, ok := listValues[3].GetValue().([]byte)
+	require.True(t, ok)
+	require.NotNil(t, toRaw)
+
+	assert.Equal(t, hexToBytes(t, "3535353535353535353535353535353535353535"), toRaw)
+
+	// Decode the value
+	require.Equal(t, Bytes, listValues[4].GetType())
+
+	valueRaw, ok := listValues[4].GetValue().([]byte)
+	require.True(t, ok)
+	require.NotNil(t, valueRaw)
+
+	value := big.NewInt(0).SetBytes(valueRaw)
+	expectedValue, _ := big.NewInt(0).SetString("1000000000000000000", 10)
+
+	assert.Zero(t, expectedValue.Cmp(value))
+
+	// Decode the data
+	require.Equal(t, Bytes, listValues[5].GetType())
+
+	dataRaw, ok := listValues[5].GetValue().([]byte)
+	require.True(t, ok)
+	require.NotNil(t, dataRaw)
+
+	assert.Empty(t, dataRaw)
+
+	// Decode the v sig param
+	require.Equal(t, Bytes, listValues[6].GetType())
+
+	vRaw, ok := listValues[6].GetValue().([]byte)
+	require.True(t, ok)
+	require.NotNil(t, vRaw)
+
+	v := big.NewInt(0).SetBytes(vRaw)
+	expectedV := big.NewInt(0).SetUint64(37)
+
+	assert.Zero(t, expectedV.Cmp(v))
+
+	// Decode the r sig param
+	require.Equal(t, Bytes, listValues[7].GetType())
+
+	rRaw, ok := listValues[7].GetValue().([]byte)
+	require.True(t, ok)
+	require.NotNil(t, rRaw)
+
+	r := big.NewInt(0).SetBytes(rRaw)
+	expectedR, _ := big.NewInt(0).SetString("28ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276", 16)
+
+	assert.Zero(t, expectedR.Cmp(r))
+
+	// Decode the s sig param
+	require.Equal(t, Bytes, listValues[8].GetType())
+
+	sRaw, ok := listValues[8].GetValue().([]byte)
+	require.True(t, ok)
+	require.NotNil(t, sRaw)
+
+	s := big.NewInt(0).SetBytes(sRaw)
+	expectedS, _ := big.NewInt(0).SetString("67cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83", 16)
+
+	assert.Zero(t, expectedS.Cmp(s))
+}

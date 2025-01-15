@@ -9,53 +9,82 @@ var ErrInvalidLength = errors.New("invalid data length")
 
 // DecodeBytes attempts to decode the given bytes from RLP
 func DecodeBytes(input []byte) (Value, error) {
-	metadata, err := getMetadata(input)
+	// Fetch the top-level metadata
+	topMeta, err := getMetadata(input)
 	if err != nil {
 		return nil, err
 	}
 
+	// Detect whether this is a list or a single byte or something else
+	var (
+		isListType   = topMeta.dataType == shortArrayType || topMeta.dataType == longArrayType
+		isSingleByte = topMeta.dataType == byteType
+	)
+
+	// Extract the payload bytes that belong to this RLP item
 	var data []byte
-
-	isListType := metadata.dataType == shortArrayType || metadata.dataType == longArrayType
-	isSingleByte := metadata.dataType == byteType
-
 	if isSingleByte {
-		data = input[0:metadata.dataLength]
+		// For a single-byte item, data length should be 1
+		data = input[:topMeta.dataLength]
 	} else {
-		data = input[metadata.dataOffset+1 : metadata.dataLength+1]
+		// Otherwise, skip the first byte (+ any length-bytes),
+		// then take <data length> bytes
+		data = input[topMeta.dataOffset+1 : topMeta.dataLength+1]
 	}
 
+	// If it’s not a list, simply return BytesValue (byte slice)
 	if !isListType {
-		return BytesValue{
-			value: data,
-		}, nil
+		return BytesValue{value: data}, nil
 	}
 
 	var (
-		arrayLength     = metadata.dataLength - metadata.dataOffset
-		decodedElements = make([]Value, 0, 4)
+		// Calculate how many data bytes we have in this list
+		// (excludes the prefix & length bytes)
+		listLength   = topMeta.dataLength - topMeta.dataOffset
+		decodedItems = make([]Value, 0, 9) // 9 is chosen as a common Ethereum RLP list size
 	)
 
 	// Parse each element of the list
-	for parseIndex := 0; parseIndex < arrayLength; parseIndex += metadata.dataLength + 1 {
+	for parseIndex := 0; parseIndex < listLength; {
 		// Get metadata on the element
-		metadata, err = getMetadata(data[parseIndex:])
+		elemMeta, err := getMetadata(data[parseIndex:])
 		if err != nil {
 			return nil, err
 		}
 
-		// Decode the RLP encoding
-		decoded, err := DecodeBytes(data[parseIndex:min(parseIndex+metadata.dataLength+1, len(data))])
-		if err != nil {
-			return nil, fmt.Errorf("unable to decode element, %w", err)
+		// Calculate the total on-wire size of this element.
+		// A single byte in [0x00..0x7f] is its *own* entire encoding (no extra prefix)
+		itemTotal := 1
+		if elemMeta.dataType != byteType {
+			// For bytes / lists, the total is prefix byte(s) + data length
+			itemTotal = 1 + elemMeta.dataLength
 		}
 
-		decodedElements = append(decodedElements, decoded)
+		// Check range bounds
+		if parseIndex+itemTotal > len(data) {
+			return nil, fmt.Errorf(
+				"RLP data is truncated: parse index =%d total items=%d data length=%d",
+				parseIndex, itemTotal, len(data),
+			)
+		}
+
+		// Extract the sub-slice for this item
+		itemBytes := data[parseIndex : parseIndex+itemTotal]
+
+		// Decode the item recursively
+		decodedItem, err := DecodeBytes(itemBytes)
+		if err != nil {
+			return nil, fmt.Errorf("unable to decode item, %w", err)
+		}
+
+		// Save the decoded item
+		decodedItems = append(decodedItems, decodedItem)
+
+		// Move to the next element
+		parseIndex += itemTotal
 	}
 
-	return ListValue{
-		values: decodedElements,
-	}, nil
+	return ListValue{values: decodedItems}, nil
 }
 
 const (
