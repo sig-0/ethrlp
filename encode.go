@@ -88,7 +88,7 @@ func EncodeBytes(input []byte) []byte {
 func encodeShortBytes(input []byte) []byte {
 	result := make([]byte, 1+len(input))
 
-	result[0] = 0x80 + byte(len(input))
+	result[0] = 0x80 + byte(len(input)) //nolint:gosec // len(input) <= 55
 	copy(result[1:], input)
 
 	return result
@@ -104,7 +104,7 @@ func encodeLongBytes(input []byte) []byte {
 
 	// The first byte is the sum of 0xb7
 	// and the length of the incoming next bytes
-	result[0] = 0xb7 + byte(len(lengthBytes))
+	result[0] = 0xb7 + byte(len(lengthBytes)) //nolint:gosec // at most 8 length bytes
 
 	ln := len(lengthBytes)
 	copy(result[1:ln+1], lengthBytes)
@@ -175,7 +175,7 @@ func encodeShortArray(input [][]byte, combinedLength int) []byte {
 
 	// The first byte is the sum of 0xc0,
 	// and the combined length of the input bytes
-	result = append(result, 0xc0+byte(combinedLength)) // length is <= 0xff
+	result = append(result, 0xc0+byte(combinedLength)) //nolint:gosec // combinedLength <= 55
 
 	// The rest of the RLP encoding
 	// are the actual concatenated bytes (RLP encoded)
@@ -196,7 +196,7 @@ func encodeLongArray(input [][]byte, combinedLength int) []byte {
 
 	// The first byte is the sum of 0xf7
 	// and the length of the incoming next bytes
-	result = append(result, 0xf7+byte(len(lengthBytes)))
+	result = append(result, 0xf7+byte(len(lengthBytes))) //nolint:gosec // at most 8 length bytes
 
 	// The second part of the RLP encoding are the length bytes
 	// of the input value
